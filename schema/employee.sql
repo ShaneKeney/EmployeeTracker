@@ -15,5 +15,5 @@ CREATE TABLE employee(
 
     primary key(id),
     foreign key(role_id) references roles(id),
-    foreign key(manager_id) references (id)
+    foreign key(manager_id) references employee(id)
 );
