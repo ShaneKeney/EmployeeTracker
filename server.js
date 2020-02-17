@@ -2,6 +2,7 @@ var express = require('express');
 var mysql = require('mysql');
 var dotenv = require('dotenv');
 var EmployeeTracker = require('./models/EmployeeTracker');
+var prompt = require('./cli/prompt');
 
 // Load environment variables if present for development
 if (process.env.NODE_ENV !== 'production') {
@@ -53,4 +54,14 @@ connection.connect(function(err) {
         throw err;
     }
     console.error(`Success connecting to database ${connection.config.database} with id ${connection.threadId}`);
+    init(connection);
 });
+
+//Start the program once all setup is complete 
+
+async function init(connection) {
+    console.log('Initializing program...')
+    while(1) {
+        await prompt(connection);
+    }
+}

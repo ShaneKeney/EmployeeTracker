@@ -10,5 +10,5 @@ create table department(
     name varchar(30),
 
     primary key(id)
-)
+);
 
