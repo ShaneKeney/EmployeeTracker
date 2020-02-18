@@ -1,4 +1,6 @@
-var inq = require('inquirer');
+const inq = require('inquirer');
+const cTable = require('console.table');
+
 
 // This will be the actions that a user can take in the CLI
 const actions = [
@@ -57,7 +59,7 @@ async function prompt(connection) {
                 await addDepartment(connection);
                 return;
             case ("View All Departments"):
-                viewDepartments();
+                await viewDepartments(connection);
                 return;
             default:
                 console.log("Unrecognized action ERROR");
@@ -159,7 +161,23 @@ async function addDepartment(connection) {
 
 }
 
-function viewDepartments() {
+function viewDepartments(connection) {
+    return new Promise((resolve, reject) => {
+        connection.query(
+            "SELECT * FROM department",
+            (err, results) => {
+                if(err) {
+                    return reject(err)
+                } else {
+                    console.log('\n')
+                    console.table(results);
+                    let departments = [];
+                    results.forEach((item) => departments.push(item.name));
+                    return resolve(departments);
+                }
+            }
+    )   ;
+    })
 
 }
 
