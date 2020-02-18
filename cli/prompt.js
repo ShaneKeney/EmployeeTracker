@@ -29,71 +29,75 @@ async function prompt(connection) {
         console.log(answer.action)
         switch(answer.action) {
             case("View All Employees"):
-                viewAllEmployees();
+                viewAllEmployees(connection);
                 return;
             case("View All Employees By Manager"):
-                viewAllEmployeesByManager();
+                viewAllEmployeesByManager(connection);
                 return;
             case("Add Employee"):
-                addEmployee();
+                addEmployee(connection);
                 return;
             case("Remove Employee"):
-                removeEmployee();
+                removeEmployee(connection);
                 return;
             case("Update Employee Role"):
-                updateEmployeeRole();
+                updateEmployeeRole(connection);
                 return;
             case("Update Employee Manager"):
-                updateEmployeeManager();
+                updateEmployeeManager(connection);
                 return;
-            case("View All Roles"):
-                viewAllRoles();
+            case("View All Roles"): //Complete
+                let roles = await viewAllRoles(connection);
+                console.log('\n')
+                console.table(roles);
                 return;
-            case("Add Role"):
-                addRole();
+            case("Add Role"): //Complete
+                await addRole(connection);
                 return;
             case("Remove Role"):
-                removeRole();
+                removeRole(connection);
                 return;
-            case("Add Department"):
+            case("Add Department"): //Complete
                 await addDepartment(connection);
                 return;
-            case ("View All Departments"):
-                await viewDepartments(connection);
+            case ("View All Departments"): //Complete
+                let departments = await viewDepartments(connection);
+                console.log('\n')
+                console.table(departments);
                 return;
-            default:
+            default: //Complete
                 console.log("Unrecognized action ERROR");
                 return;
         }
     });
 }
 
-function viewAllEmployees() {
+function viewAllEmployees(connection) {
 
 }
 
-function viewAllEmployeesByManager() {
+function viewAllEmployeesByManager(connection) {
 
 }
 
-async function addEmployee() {
+async function addEmployee(connection) {
     //TODO: need to create query to get all roles
-    let roles = viewAllRoles();
+    let roles = viewAllRoles(connection);
 
     //TODO: need to create a query to get all the manager names
-    let managers = viewAllEmployeesByManager();
+    let managers = viewAllEmployeesByManager(connection);
 
     inq.prompt([{
         name: "first_name",
         type: 'input',
         message: "What is the employee first name?",
-        validate: function(value) { (value) ? true : false }
+        validate: function(value) { return (value) ? true : false }
     },
     {
         name: "last_name",
         type: "input",
         message: "What is the employee last name?",
-        validate: function(value) { (value) ? true : false }
+        validate: function(value) { return (value) ? true : false }
     },
     {
         name: "role",
@@ -115,29 +119,102 @@ async function addEmployee() {
     })
 }
 
-function removeEmployee() {
+function removeEmployee(connection) {
 
 }
 
-function updateEmployeeRole() {
+function updateEmployeeRole(connection) {
 
 }
 
-function updateEmployeeManager() {
+function updateEmployeeManager(connection) {
 
 }
 
-function viewAllRoles() {
-    //TODO: View all roles and show in table
+function viewAllRoles(connection) {
+    return new Promise((resolve, reject) => {
+        connection.query(
+            "SELECT * FROM roles",
+            (err, results) => {
+                if(err) {
+                    return reject(err)
+                } else {
+                    return resolve(results);
+                }
+            }
+        );
+    })
 }
 
-function addRole() {
+async function addRole(connection) {
     // Add role to the roles table
-
+    await inq.prompt([{
+        name: "title",
+        message: "Specify which title to add: ",
+        type: "input"
+    },
+    {
+        name: "salary",
+        message: "Specify salary (digits): ",
+        type: "input"
+    },
+    {
+        name: "department",
+        message: "Choose department: ",
+        type: "rawlist",
+        choices: async function() {
+            let results = await viewDepartments(connection);
+            let departments = [];
+            results.forEach((item) => departments.push(item.name));
+            return departments;
+        }
+    }])
+    .then(async function(answer) {
+        let rowPacket = await getIdOfDepartmentName(connection, answer.department);
+        // rowPacket is an array of results... It should only ever return one item
+        
+        await connection.query(
+           "INSERT INTO roles SET ?",
+           {
+               title: answer.title,
+               salary: answer.salary,
+               department_id: rowPacket[0].id
+           },
+           function(err) {
+               if(err) throw err;
+           }
+        )
+    })
 }
 
-function removeRole() {
+function getIdOfDepartmentName(connection, departmentName) {
+    return new Promise((resolve, reject) => {
+        connection.query(
+            "SELECT id FROM department WHERE name = ?",
+            [departmentName],
+            (err, results) => {
+                if(err) return reject(err);
+                return resolve(results);
+            }
+        )
+    })
+}
 
+// function getNameOfDepartmentId(connection, id) {
+//     return new Promise((resolve, reject) => {
+//         connection.query(
+//             "SELECT name FROM department WHERE id = ?",
+//             [id],
+//             (err, results) => {
+//                 if(err) return reject(err);
+//                 return resolve(results);
+//             }
+//         )
+//     })
+// }
+
+function removeRole(connection) {
+    
 }
 
 async function addDepartment(connection) {
@@ -147,7 +224,6 @@ async function addDepartment(connection) {
         type: "input"
     })
     .then(async function(answer) {
-        console.log(answer.department);
         await connection.query(
             "INSERT INTO department SET ?",
             {
@@ -169,16 +245,11 @@ function viewDepartments(connection) {
                 if(err) {
                     return reject(err)
                 } else {
-                    console.log('\n')
-                    console.table(results);
-                    let departments = [];
-                    results.forEach((item) => departments.push(item.name));
-                    return resolve(departments);
+                    return resolve(results);
                 }
             }
-    )   ;
+        );
     })
-
 }
 
 module.exports = prompt;
