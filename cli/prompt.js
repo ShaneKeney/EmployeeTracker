@@ -89,7 +89,7 @@ function viewAllEmployees(connection) {
     })
 }
 
-//TODO: CHECK THIS AT SOME POINT
+// TODO: CHECK THIS AT SOME POINT
 // Gets a list of all managers
 function viewAllEmployeesByManager(connection) {
     return new Promise((resolve, reject) => {
@@ -142,6 +142,7 @@ async function addEmployee(connection) {
         choices: async function() {
             let results = await viewAllEmployees(connection);
             let employees = [];
+            employees.push("None");
             results.forEach((item) => employees.push(`${item.first_name} ${item.last_name}`));
             return employees;
         }
@@ -168,6 +169,7 @@ async function addEmployee(connection) {
 
 function getIdOfManager(connection, manager) {
     return new Promise((resolve, reject) => {
+        if(manager === "None") return resolve([{ id: null }]); //resolve null for not choosing a manager
         let firstName = manager.substr(0, manager.indexOf(" "));
         let lastName = manager.substr(manager.indexOf(" ") + 1, manager.length - 1);
         console.log(`${firstName}${lastName}`);
