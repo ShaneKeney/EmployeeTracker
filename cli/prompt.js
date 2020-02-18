@@ -28,14 +28,16 @@ async function prompt(connection) {
         //based on action input
         console.log(answer.action)
         switch(answer.action) {
-            case("View All Employees"):
-                viewAllEmployees(connection);
+            case("View All Employees"): // Most complete (TODO: possibly join tables together rather than showing ids)
+                let employees = await viewAllEmployees(connection);
+                console.log('\n')
+                console.table(employees);
                 return;
             case("View All Employees By Manager"):
                 viewAllEmployeesByManager(connection);
                 return;
-            case("Add Employee"):
-                addEmployee(connection);
+            case("Add Employee"): // Complete
+                await addEmployee(connection);
                 return;
             case("Remove Employee"):
                 removeEmployee(connection);
@@ -73,21 +75,44 @@ async function prompt(connection) {
 }
 
 function viewAllEmployees(connection) {
-
+    return new Promise((resolve, reject) => {
+        connection.query(
+            "SELECT * FROM employee",
+            (err, results) => {
+                if(err) {
+                    return reject(err)
+                } else {
+                    return resolve(results);
+                }
+            }
+        );
+    })
 }
 
+//TODO: CHECK THIS AT SOME POINT
+// Gets a list of all managers
 function viewAllEmployeesByManager(connection) {
-
+    return new Promise((resolve, reject) => {
+        connection.query(
+            `select 
+                id, first_name, last_name
+            from
+                employee t1
+            inner join (select manager_id from employee group by manager_id having manager_id is not null) t2
+                on t2.manager_id = t1.id;`,
+            (err, results) => {
+                if(err) {
+                    return reject(err)
+                } else {
+                    return resolve(results);
+                }
+            }
+        );
+    })
 }
 
 async function addEmployee(connection) {
-    //TODO: need to create query to get all roles
-    let roles = viewAllRoles(connection);
-
-    //TODO: need to create a query to get all the manager names
-    let managers = viewAllEmployeesByManager(connection);
-
-    inq.prompt([{
+    await inq.prompt([{
         name: "first_name",
         type: 'input',
         message: "What is the employee first name?",
@@ -103,19 +128,70 @@ async function addEmployee(connection) {
         name: "role",
         type: "rawlist",
         message: "What is the employees role?",
-        choices: roles
+        choices: async function() {
+            let results = await viewAllRoles(connection);
+            let roles = [];
+            results.forEach((item) => roles.push(item.title));
+            return roles;
+        }
     },
     {
         name: "manager",
         type: "rawlist",
         message: "What is the employees manager?",
-        choices: managers
+        choices: async function() {
+            let results = await viewAllEmployees(connection);
+            let employees = [];
+            results.forEach((item) => employees.push(`${item.first_name} ${item.last_name}`));
+            return employees;
+        }
     }
     ])
-    .then(function(answer) {
-        console.log(answer);
+    .then(async function(answer) {
+        let managerIdRowPacket = await getIdOfManager(connection, answer.manager);
+        let roleIdRowPacket = await getIdOfRole(connection, answer.role);
 
-        //TODO: Create query to insert new employee
+        await connection.query(
+            "INSERT INTO employee SET ?",
+            {
+                first_name: answer.first_name,
+                last_name: answer.last_name,
+                role_id: roleIdRowPacket[0].id,
+                manager_id: managerIdRowPacket[0].id
+            },
+            function(err) {
+                if(err) throw err;
+            }
+        );
+    })
+}
+
+function getIdOfManager(connection, manager) {
+    return new Promise((resolve, reject) => {
+        let firstName = manager.substr(0, manager.indexOf(" "));
+        let lastName = manager.substr(manager.indexOf(" ") + 1, manager.length - 1);
+        console.log(`${firstName}${lastName}`);
+        connection.query(
+            "SELECT id FROM employee WHERE first_name = ? AND last_name = ?",
+            [firstName, lastName],
+            (err, results) => {
+                if(err) return reject(err);
+                return resolve(results);
+            }
+        )
+    })
+}
+
+function getIdOfRole(connection, role) {
+    return new Promise((resolve, reject) => {
+        connection.query(
+            "SELECT id FROM roles WHERE title = ?",
+            [role],
+            (err, results) => {
+                if(err) return reject(err);
+                return resolve(results);
+            }
+        )
     })
 }
 
