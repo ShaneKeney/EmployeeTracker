@@ -42,8 +42,8 @@ async function prompt(connection) {
             case("Remove Employee"):
                 removeEmployee(connection);
                 return;
-            case("Update Employee Role"):
-                updateEmployeeRole(connection);
+            case("Update Employee Role"):  //Complete
+                await updateEmployeeRole(connection);
                 return;
             case("Update Employee Manager"):
                 updateEmployeeManager(connection);
@@ -77,7 +77,16 @@ async function prompt(connection) {
 function viewAllEmployees(connection) {
     return new Promise((resolve, reject) => {
         connection.query(
-            "SELECT * FROM employee",
+            `SELECT 
+                t1.id, 
+                first_name, 
+                last_name, 
+                title,
+                name as department
+            FROM
+                employee t1
+            INNER JOIN roles t2 ON t1.role_id = t2.id
+            INNER JOIN department t3 ON t2.department_id = t3.id;`,
             (err, results) => {
                 if(err) {
                     return reject(err)
@@ -201,8 +210,53 @@ function removeEmployee(connection) {
 
 }
 
-function updateEmployeeRole(connection) {
+// TODO: updates employee role
+async function updateEmployeeRole(connection) {
+    await inq.prompt([{
+        name: "employeeUpdate",
+        message: "Choose the employee who needs updated role: ",
+        type: "list",
+        choices: async function() {
+            let results = await viewAllEmployees(connection);
+            let employees = [];
+            results.forEach((item) => employees.push(`${item.first_name} ${item.last_name}`));
+            return employees;
+        }
+    },
+    {
+        name: "newRole",
+        message: `Select the new role for the employee`,
+        type: "list",
+        choices: async function() {
+            let results = await viewAllRoles(connection);
+            let roles = [];
+            results.forEach((item) => roles.push(item.title));
+            return roles;
+        }
+    }
+    ])
+    .then(async function(answer) {
+        // Get the role id for the role selected
+        let newRoleId = await getIdOfRole(connection, answer.newRole);
+        let employeeFullName = answer.employeeUpdate;
+        let employee = employeeFullName.split(" ");
 
+        //We know it will always have a first name and last name (separated by a space)
+        let firstName = employee[0];
+        let lastName = employee[1];
+
+        connection.query(
+            "UPDATE employee SET ? WHERE first_name = ? AND last_name = ?;",
+            [
+                { role_id: newRoleId[0].id }, //object to specify column and value to update
+                firstName,
+                lastName
+            ],
+            function(err) {
+                if(err) throw err;
+            }
+        )
+    })
 }
 
 function updateEmployeeManager(connection) {
